@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"bufio"
@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/elioetibr/golang-yaml-advanced/yaml/internal"
 )
 
 // Schema represents a validation schema for YAML nodes
@@ -116,7 +118,7 @@ func (s *Schema) Validate(node *Node, path string) []ValidationError {
 		}
 
 		if s.Format != "" {
-			if !validateFormat(str, s.Format) {
+			if !internal.ValidateFormat(str, s.Format) {
 				errors = append(errors, ValidationError{
 					Path:    path,
 					Message: fmt.Sprintf("string does not match format %s", s.Format),
@@ -399,61 +401,6 @@ func nodeToInterface(node *Node) interface{} {
 	}
 }
 
-func validateFormat(value, format string) bool {
-	switch format {
-	case "email":
-		emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+$`
-		matched, _ := regexp.MatchString(emailRegex, value)
-		return matched
-	case "uri", "url":
-		urlRegex := `^(https?|ftp)://[^\s/$.?#].[^\s]*$`
-		matched, _ := regexp.MatchString(urlRegex, value)
-		return matched
-	case "ipv4":
-		ipv4Regex := `^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$`
-		matched, _ := regexp.MatchString(ipv4Regex, value)
-		return matched
-	case "ipv6":
-		ipv6Regex := `^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$`
-		matched, _ := regexp.MatchString(ipv6Regex, value)
-		return matched
-	case "uuid":
-		uuidRegex := `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`
-		matched, _ := regexp.MatchString(uuidRegex, value)
-		return matched
-	case "date":
-		dateRegex := `^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`
-		matched, _ := regexp.MatchString(dateRegex, value)
-		if !matched {
-			return false
-		}
-		// Additional date validation
-		parts := strings.Split(value, "-")
-		year, _ := strconv.Atoi(parts[0])
-		month, _ := strconv.Atoi(parts[1])
-		day, _ := strconv.Atoi(parts[2])
-		// Check days in month
-		daysInMonth := []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-		if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
-			daysInMonth[1] = 29 // Leap year
-		}
-		if month < 1 || month > 12 || day < 1 || day > daysInMonth[month-1] {
-			return false
-		}
-		return true
-	case "date-time", "datetime":
-		dateTimeRegex := `^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.\d+)?(Z|[+-]\d{2}:\d{2})$`
-		matched, _ := regexp.MatchString(dateTimeRegex, value)
-		return matched
-	case "time":
-		timeRegex := `^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$`
-		matched, _ := regexp.MatchString(timeRegex, value)
-		return matched
-	default:
-		return true // Unknown format, assume valid
-	}
-}
-
 // StreamParser provides streaming YAML parsing for large files
 type StreamParser struct {
 	reader           *bufio.Reader
@@ -493,16 +440,16 @@ func (sp *StreamParser) Parse() error {
 			if trimmed == "---" {
 				// Process current buffer if not empty
 				if len(sp.buffer) > 0 {
-					if err := sp.processBuffer(); err != nil {
-						return err
+					if procErr := sp.processBuffer(); procErr != nil {
+						return procErr
 					}
 				}
 				sp.inDocument = true
 			} else if trimmed == "..." {
 				// Document end marker
 				if len(sp.buffer) > 0 {
-					if err := sp.processBuffer(); err != nil {
-						return err
+					if procErr := sp.processBuffer(); procErr != nil {
+						return procErr
 					}
 				}
 				sp.inDocument = false
@@ -569,14 +516,86 @@ type Transform struct {
 type TransformDSL struct {
 	transforms []Transform
 	errors     []error
+	inputTree  *NodeTree // Optional: stores the input tree when created with NewTransformDSLFrom
 }
 
-// NewTransformDSL creates a new transformation DSL
+// NewTransformDSL creates a new transformation DSL without input data
 func NewTransformDSL() *TransformDSL {
 	return &TransformDSL{
 		transforms: make([]Transform, 0),
 		errors:     make([]error, 0),
 	}
+}
+
+// NewTransformDSLFrom creates a new transformation DSL with flexible input
+// Accepts: *NodeTree, *Node, *Document, interface{}, []byte, string
+func NewTransformDSLFrom(input interface{}) (*TransformDSL, error) {
+	dsl := &TransformDSL{
+		transforms: make([]Transform, 0),
+		errors:     make([]error, 0),
+	}
+
+	// Convert input to NodeTree
+	tree, err := convertInputToNodeTree(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert input to NodeTree: %w", err)
+	}
+
+	dsl.inputTree = tree
+	return dsl, nil
+}
+
+// convertInputToNodeTree converts various input types to NodeTree
+func convertInputToNodeTree(input interface{}) (*NodeTree, error) {
+	if input == nil {
+		return nil, fmt.Errorf("input cannot be nil")
+	}
+
+	// Already a NodeTree
+	if tree, ok := input.(*NodeTree); ok {
+		return tree, nil
+	}
+
+	// Single Node - wrap in NodeTree
+	if node, ok := input.(*Node); ok {
+		tree := NewNodeTree()
+		doc := tree.AddDocument()
+		if node.Kind == DocumentNode {
+			doc.SetRoot(node)
+		} else {
+			// Wrap non-document node in a document node
+			docNode := NewNode(DocumentNode)
+			docNode.AddChild(node)
+			doc.SetRoot(docNode)
+		}
+		return tree, nil
+	}
+
+	// Document - wrap in NodeTree
+	if doc, ok := input.(*Document); ok {
+		tree := NewNodeTree()
+		tree.Documents = append(tree.Documents, doc)
+		tree.Current = doc
+		return tree, nil
+	}
+
+	// YAML bytes
+	if yamlBytes, ok := input.([]byte); ok {
+		return UnmarshalYAML(yamlBytes)
+	}
+
+	// YAML string
+	if yamlStr, ok := input.(string); ok {
+		return UnmarshalYAML([]byte(yamlStr))
+	}
+
+	// Go struct/map/slice - marshal to YAML then parse
+	yamlBytes, err := Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal input: %w", err)
+	}
+
+	return UnmarshalYAML(yamlBytes)
 }
 
 // Select creates a transform that filters nodes matching a predicate
@@ -836,9 +855,14 @@ func flattenRecursive(node *Node, prefix string, result map[string]*Node) {
 }
 
 // Apply executes all transformations on a node tree
+// If tree is nil, uses the inputTree stored during NewTransformDSLFrom
 func (dsl *TransformDSL) Apply(tree *NodeTree) (*NodeTree, error) {
+	// If no tree provided, use the stored inputTree
 	if tree == nil {
-		return nil, fmt.Errorf("tree is nil")
+		if dsl.inputTree == nil {
+			return nil, fmt.Errorf("tree is nil and no input tree was provided during initialization")
+		}
+		tree = dsl.inputTree
 	}
 
 	if len(dsl.errors) > 0 {

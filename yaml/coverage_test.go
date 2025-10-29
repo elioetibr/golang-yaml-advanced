@@ -1,8 +1,10 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/elioetibr/golang-yaml-advanced/yaml/internal"
 )
 
 // TestNewMappingNode tests the NewMappingNode helper function
@@ -125,20 +127,20 @@ func TestNodeString(t *testing.T) {
 		{
 			name: "mapping node",
 			node: func() *Node {
-				m := NewMappingNode()
-				m.AddChild(NewScalarNode("key"))
-				m.AddChild(NewScalarNode("value"))
-				return m
+				mapping := NewMappingNode()
+				mapping.AddChild(NewScalarNode("key"))
+				mapping.AddChild(NewScalarNode("value"))
+				return mapping
 			}(),
 			expected: "\nkey: value",
 		},
 		{
 			name: "sequence node",
 			node: func() *Node {
-				s := NewSequenceNode()
-				s.AddSequenceItem(NewScalarNode("item1"))
-				s.AddSequenceItem(NewScalarNode("item2"))
-				return s
+				sequence := NewSequenceNode()
+				sequence.AddSequenceItem(NewScalarNode("item1"))
+				sequence.AddSequenceItem(NewScalarNode("item2"))
+				return sequence
 			}(),
 			expected: "\n- item1\n- item2",
 		},
@@ -150,9 +152,9 @@ func TestNodeString(t *testing.T) {
 		{
 			name: "document node",
 			node: func() *Node {
-				d := &Node{Kind: DocumentNode}
-				d.Children = []*Node{NewScalarNode("content")}
-				return d
+				docNode := &Node{Kind: DocumentNode}
+				docNode.Children = []*Node{NewScalarNode("content")}
+				return docNode
 			}(),
 			expected: "content",
 		},
@@ -224,8 +226,8 @@ func TestNodeReplaceWith(t *testing.T) {
 	parent.AddSequenceItem(old)
 	old.Parent = parent
 
-	new := NewScalarNode("new")
-	err := old.ReplaceWith(new)
+	newNode := NewScalarNode("new")
+	err := old.ReplaceWith(newNode)
 	if err != nil {
 		t.Errorf("Failed to replace: %v", err)
 	}
@@ -234,7 +236,7 @@ func TestNodeReplaceWith(t *testing.T) {
 		t.Error("Old node should have no parent")
 	}
 
-	if new.Parent != parent {
+	if newNode.Parent != parent {
 		t.Error("New node should have parent")
 	}
 
@@ -242,7 +244,7 @@ func TestNodeReplaceWith(t *testing.T) {
 		t.Errorf("Parent should have 1 child, got %d", len(parent.Children))
 	}
 
-	if parent.Children[0] != new {
+	if parent.Children[0] != newNode {
 		t.Error("Child should be replaced")
 	}
 
@@ -300,24 +302,24 @@ func TestNodeToInterface(t *testing.T) {
 		{
 			name: "mapping",
 			node: func() *Node {
-				m := &Node{Kind: MappingNode}
-				m.Children = []*Node{
+				mapping := &Node{Kind: MappingNode}
+				mapping.Children = []*Node{
 					{Kind: ScalarNode, Value: "key"},
 					{Kind: ScalarNode, Value: "value"},
 				}
-				return m
+				return mapping
 			}(),
 			expected: map[string]interface{}{"key": "value"},
 		},
 		{
 			name: "sequence",
 			node: func() *Node {
-				s := &Node{Kind: SequenceNode}
-				s.Children = []*Node{
+				sequence := &Node{Kind: SequenceNode}
+				sequence.Children = []*Node{
 					{Kind: ScalarNode, Value: "item1"},
 					{Kind: ScalarNode, Value: "item2"},
 				}
-				return s
+				return sequence
 			}(),
 			expected: []interface{}{"item1", "item2"},
 		},
@@ -578,7 +580,7 @@ func TestValidateFormatEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.format+"_"+tt.value, func(t *testing.T) {
-			result := validateFormat(tt.value, tt.format)
+			result := internal.ValidateFormat(tt.value, tt.format)
 			if tt.valid && !result {
 				t.Error("Expected valid, got invalid")
 			}

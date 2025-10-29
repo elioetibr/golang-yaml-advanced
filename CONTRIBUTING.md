@@ -22,7 +22,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 
 ### Prerequisites
 
-- **Go**: Version 1.20 or higher
+- **Go**: Version 1.21 or higher
 - **Git**: For version control
 - **Make**: For running build tasks
 

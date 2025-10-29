@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"errors"
@@ -1496,5 +1496,373 @@ func TestCustomFormats(t *testing.T) {
 				t.Errorf("Format %s: '%s' should be invalid", ft.format, invalid)
 			}
 		}
+	}
+}
+
+// Test NewTransformDSLFrom with various input types
+func TestNewTransformDSLFrom(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     interface{}
+		wantError bool
+		validate  func(t *testing.T, dsl *TransformDSL)
+	}{
+		{
+			name: "from NodeTree",
+			input: func() *NodeTree {
+				tree, _ := UnmarshalYAML([]byte("name: John\nage: 30"))
+				return tree
+			}(),
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+				if len(dsl.inputTree.Documents) == 0 {
+					t.Error("inputTree should have documents")
+				}
+			},
+		},
+		{
+			name: "from Node",
+			input: func() *Node {
+				node := NewMappingNode()
+				node.AddKeyValue(NewScalarNode("key"), NewScalarNode("value"))
+				return node
+			}(),
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+				if len(dsl.inputTree.Documents) == 0 {
+					t.Error("inputTree should have documents")
+				}
+			},
+		},
+		{
+			name: "from Document",
+			input: func() *Document {
+				doc := &Document{
+					Anchors: make(map[string]*Node),
+				}
+				root := NewNode(DocumentNode)
+				mapping := NewMappingNode()
+				mapping.AddKeyValue(NewScalarNode("test"), NewScalarNode("value"))
+				root.AddChild(mapping)
+				doc.SetRoot(root)
+				return doc
+			}(),
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+			},
+		},
+		{
+			name:      "from YAML bytes",
+			input:     []byte("name: Alice\nrole: admin"),
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+			},
+		},
+		{
+			name:      "from YAML string",
+			input:     "city: Paris\ncountry: France",
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+			},
+		},
+		{
+			name: "from Go map",
+			input: map[string]interface{}{
+				"name":  "Bob",
+				"age":   25,
+				"admin": true,
+			},
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+			},
+		},
+		{
+			name: "from Go struct",
+			input: struct {
+				Name string `yaml:"name"`
+				Age  int    `yaml:"age"`
+			}{
+				Name: "Carol",
+				Age:  28,
+			},
+			wantError: false,
+			validate: func(t *testing.T, dsl *TransformDSL) {
+				if dsl.inputTree == nil {
+					t.Error("inputTree should not be nil")
+				}
+			},
+		},
+		{
+			name:      "from nil",
+			input:     nil,
+			wantError: true,
+			validate:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dsl, err := NewTransformDSLFrom(tt.input)
+
+			if tt.wantError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if dsl == nil {
+				t.Fatal("dsl should not be nil")
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, dsl)
+			}
+		})
+	}
+}
+
+// Test Apply with stored inputTree
+func TestTransformDSLApplyWithStoredTree(t *testing.T) {
+	yamlInput := `
+name: John
+age: 30
+email: john@example.com
+`
+
+	// Test old pattern - Apply with explicit tree
+	t.Run("old pattern - explicit tree", func(t *testing.T) {
+		tree, err := UnmarshalYAML([]byte(yamlInput))
+		if err != nil {
+			t.Fatalf("failed to unmarshal: %v", err)
+		}
+
+		dsl := NewTransformDSL()
+		result, err := dsl.Select(func(n *Node) bool {
+			return n.Key != nil && n.Key.Value == "email"
+		}).Apply(tree)
+
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
+
+		if result == nil {
+			t.Fatal("result should not be nil")
+		}
+	})
+
+	// Test new pattern - Apply without tree (uses stored inputTree)
+	t.Run("new pattern - stored tree", func(t *testing.T) {
+		dsl, err := NewTransformDSLFrom([]byte(yamlInput))
+		if err != nil {
+			t.Fatalf("NewTransformDSLFrom failed: %v", err)
+		}
+
+		result, err := dsl.Select(func(n *Node) bool {
+			return n.Key != nil && n.Key.Value == "email"
+		}).Apply(nil)
+
+		if err != nil {
+			t.Fatalf("Apply failed: %v", err)
+		}
+
+		if result == nil {
+			t.Fatal("result should not be nil")
+		}
+	})
+
+	// Test error when Apply called without tree and no inputTree
+	t.Run("error - no tree provided", func(t *testing.T) {
+		dsl := NewTransformDSL()
+		_, err := dsl.Apply(nil)
+
+		if err == nil {
+			t.Error("expected error when no tree provided")
+		}
+	})
+}
+
+// Test transformations with flexible input
+func TestTransformDSLFromWithTransformations(t *testing.T) {
+	yamlInput := `
+name: Alice
+role: admin
+email: alice@example.com
+`
+
+	dsl, err := NewTransformDSLFrom([]byte(yamlInput))
+	if err != nil {
+		t.Fatalf("NewTransformDSLFrom failed: %v", err)
+	}
+
+	// Apply transformation - remove the email field
+	result, err := dsl.RemoveKey("email").Apply(nil)
+
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("result should not be nil")
+	}
+
+	// Verify result
+	yamlBytes, err := result.ToYAML()
+	if err != nil {
+		t.Fatalf("ToYAML failed: %v", err)
+	}
+
+	yamlStr := string(yamlBytes)
+	if !strings.Contains(yamlStr, "Alice") {
+		t.Error("result should contain Alice")
+	}
+	if !strings.Contains(yamlStr, "admin") {
+		t.Error("result should contain admin")
+	}
+	if strings.Contains(yamlStr, "email") {
+		t.Error("result should not contain email field (removed)")
+	}
+}
+
+// Test convertInputToNodeTree directly
+func TestConvertInputToNodeTree(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     interface{}
+		wantError bool
+	}{
+		{
+			name:      "NodeTree",
+			input:     NewNodeTree(),
+			wantError: false,
+		},
+		{
+			name:      "Node",
+			input:     NewMappingNode(),
+			wantError: false,
+		},
+		{
+			name: "Document",
+			input: &Document{
+				Root:    NewNode(DocumentNode),
+				Anchors: make(map[string]*Node),
+			},
+			wantError: false,
+		},
+		{
+			name:      "YAML bytes",
+			input:     []byte("test: value"),
+			wantError: false,
+		},
+		{
+			name:      "YAML string",
+			input:     "test: value",
+			wantError: false,
+		},
+		{
+			name:      "Go map",
+			input:     map[string]string{"key": "value"},
+			wantError: false,
+		},
+		{
+			name:      "nil input",
+			input:     nil,
+			wantError: true,
+		},
+		{
+			name:      "invalid YAML bytes",
+			input:     []byte("{invalid yaml"),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree, err := convertInputToNodeTree(tt.input)
+
+			if tt.wantError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			if tree == nil {
+				t.Error("tree should not be nil")
+			}
+		})
+	}
+}
+
+// Test chaining transformations with stored input
+func TestTransformDSLFromChaining(t *testing.T) {
+	yamlInput := `
+config:
+  database:
+    host: localhost
+    port: 5432
+  cache:
+    enabled: true
+`
+
+	dsl, err := NewTransformDSLFrom(yamlInput)
+	if err != nil {
+		t.Fatalf("NewTransformDSLFrom failed: %v", err)
+	}
+
+	// Chain multiple transformations
+	result, err := dsl.
+		RemoveKey("cache").
+		RenameKey("database", "db").
+		Apply(nil)
+
+	if err != nil {
+		t.Fatalf("Apply failed: %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("result should not be nil")
+	}
+
+	yamlBytes, err := result.ToYAML()
+	if err != nil {
+		t.Fatalf("ToYAML failed: %v", err)
+	}
+
+	yamlStr := string(yamlBytes)
+	if !strings.Contains(yamlStr, "db:") {
+		t.Error("result should contain db (renamed from database)")
+	}
+	if strings.Contains(yamlStr, "cache") {
+		t.Error("result should not contain cache (removed)")
+	}
+	if !strings.Contains(yamlStr, "localhost") {
+		t.Error("result should still contain localhost")
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/elioetibr/golang-yaml-advanced"
+	"github.com/elioetibr/golang-yaml-advanced/yaml"
 )
 
 func main() {
@@ -50,9 +50,9 @@ hobbies:
 `
 
 	// Define a schema
-	schema := &golang_yaml_advanced.Schema{
+	schema := &yaml.Schema{
 		Type: "object",
-		Properties: map[string]*golang_yaml_advanced.Schema{
+		Properties: map[string]*yaml.Schema{
 			"name": {
 				Type:      "string",
 				MinLength: intPtr(1),
@@ -69,7 +69,7 @@ hobbies:
 			},
 			"address": {
 				Type: "object",
-				Properties: map[string]*golang_yaml_advanced.Schema{
+				Properties: map[string]*yaml.Schema{
 					"street": {Type: "string"},
 					"city":   {Type: "string"},
 					"zipcode": {
@@ -81,7 +81,7 @@ hobbies:
 			},
 			"hobbies": {
 				Type:     "array",
-				Items:    &golang_yaml_advanced.Schema{Type: "string"},
+				Items:    &yaml.Schema{Type: "string"},
 				MinItems: intPtr(1),
 				MaxItems: intPtr(10),
 			},
@@ -90,7 +90,7 @@ hobbies:
 	}
 
 	// Parse YAML
-	tree, err := golang_yaml_advanced.UnmarshalYAML([]byte(yamlContent))
+	tree, err := yaml.UnmarshalYAML([]byte(yamlContent))
 	if err != nil {
 		log.Fatalf("Failed to parse YAML: %v", err)
 	}
@@ -99,7 +99,7 @@ hobbies:
 	if len(tree.Documents) > 0 && tree.Documents[0].Root != nil {
 		// Get the content node (skip document wrapper)
 		contentNode := tree.Documents[0].Root
-		if contentNode.Kind == golang_yaml_advanced.DocumentNode && len(contentNode.Children) > 0 {
+		if contentNode.Kind == yaml.DocumentNode && len(contentNode.Children) > 0 {
 			contentNode = contentNode.Children[0]
 		}
 
@@ -120,10 +120,10 @@ name: ""
 age: 200
 email: "not-an-email"
 `
-	tree2, _ := golang_yaml_advanced.UnmarshalYAML([]byte(invalidYAML))
+	tree2, _ := yaml.UnmarshalYAML([]byte(invalidYAML))
 	if len(tree2.Documents) > 0 && tree2.Documents[0].Root != nil {
 		contentNode := tree2.Documents[0].Root
-		if contentNode.Kind == golang_yaml_advanced.DocumentNode && len(contentNode.Children) > 0 {
+		if contentNode.Kind == yaml.DocumentNode && len(contentNode.Children) > 0 {
 			contentNode = contentNode.Children[0]
 		}
 
@@ -156,10 +156,10 @@ cache:
 
 	// Create streaming parser
 	reader := strings.NewReader(largeYAML)
-	parser := golang_yaml_advanced.NewStreamParser(reader)
+	parser := yaml.NewStreamParser(reader)
 
 	docCount := 0
-	parser.SetDocumentCallback(func(tree *golang_yaml_advanced.NodeTree) error {
+	parser.SetDocumentCallback(func(tree *yaml.NodeTree) error {
 		docCount++
 		fmt.Printf("Processed document %d\n", docCount)
 
@@ -167,7 +167,7 @@ cache:
 		if len(tree.Documents) > 0 && tree.Documents[0].Root != nil {
 			// Extract some info
 			root := tree.Documents[0].Root
-			if root.Kind == golang_yaml_advanced.DocumentNode && len(root.Children) > 0 {
+			if root.Kind == yaml.DocumentNode && len(root.Children) > 0 {
 				fmt.Printf("  Root has %d children\n", len(root.Children[0].Children)/2)
 			}
 		}
@@ -198,14 +198,14 @@ config:
     - monitoring
 `
 
-	tree, err := golang_yaml_advanced.UnmarshalYAML([]byte(yamlContent))
+	tree, err := yaml.UnmarshalYAML([]byte(yamlContent))
 	if err != nil {
 		log.Fatalf("Failed to parse YAML: %v", err)
 	}
 
 	// Example 1: Remove sensitive data
 	fmt.Println("Example 1: Remove sensitive data")
-	dsl1 := golang_yaml_advanced.NewTransformDSL().
+	dsl1 := yaml.NewTransformDSL().
 		RemoveKey("password").
 		RemoveKey("username")
 
@@ -220,7 +220,7 @@ config:
 
 	// Example 2: Add comments and rename keys
 	fmt.Println("\nExample 2: Add comments and rename keys")
-	dsl2 := golang_yaml_advanced.NewTransformDSL().
+	dsl2 := yaml.NewTransformDSL().
 		AddComment("Configuration file").
 		RenameKey("database", "db").
 		SortKeys()
@@ -231,7 +231,7 @@ config:
 	} else {
 		output, _ := result2.ToYAML()
 		fmt.Println("Result (with comments and renamed keys):")
-		lines := strings.Split(string(output), "\n")
+		lines := strings.Split(string(output), "")
 		for i, line := range lines {
 			if i > 10 {
 				fmt.Println("  ... (truncated)")
@@ -243,7 +243,7 @@ config:
 
 	// Example 3: Flatten nested structure
 	fmt.Println("\nExample 3: Flatten nested structure")
-	dsl3 := golang_yaml_advanced.NewTransformDSL().Flatten()
+	dsl3 := yaml.NewTransformDSL().Flatten()
 
 	result3, err := dsl3.Apply(tree)
 	if err != nil {
@@ -251,7 +251,7 @@ config:
 	} else {
 		output, _ := result3.ToYAML()
 		fmt.Println("Result (flattened):")
-		lines := strings.Split(string(output), "\n")
+		lines := strings.Split(string(output), "")
 		for _, line := range lines {
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "#") {
 				fmt.Println("  " + line)
@@ -285,14 +285,14 @@ settings:
     push: false
 `
 
-	tree, err := golang_yaml_advanced.UnmarshalYAML([]byte(yamlContent))
+	tree, err := yaml.UnmarshalYAML([]byte(yamlContent))
 	if err != nil {
 		log.Fatalf("Failed to parse YAML: %v", err)
 	}
 
 	if len(tree.Documents) > 0 && tree.Documents[0].Root != nil {
 		root := tree.Documents[0].Root
-		if root.Kind == golang_yaml_advanced.DocumentNode && len(root.Children) > 0 {
+		if root.Kind == yaml.DocumentNode && len(root.Children) > 0 {
 			root = root.Children[0]
 		}
 
@@ -307,15 +307,15 @@ settings:
 
 		fmt.Println("Query Examples:")
 		for _, query := range queries {
-			results := golang_yaml_advanced.Query(root, query)
+			results := yaml.Query(root, query)
 			fmt.Printf("\nQuery: %s\n", query)
 			if len(results) > 0 {
 				for _, node := range results {
-					if node.Kind == golang_yaml_advanced.ScalarNode {
+					if node.Kind == yaml.ScalarNode {
 						fmt.Printf("  Result: %v\n", node.Value)
-					} else if node.Kind == golang_yaml_advanced.SequenceNode {
+					} else if node.Kind == yaml.SequenceNode {
 						fmt.Printf("  Result: Array with %d items\n", len(node.Children))
-					} else if node.Kind == golang_yaml_advanced.MappingNode {
+					} else if node.Kind == yaml.MappingNode {
 						fmt.Printf("  Result: Object with %d keys\n", len(node.Children)/2)
 					}
 				}
@@ -329,21 +329,21 @@ settings:
 	fmt.Println("\n\nAdvanced: Find all admin users")
 	if len(tree.Documents) > 0 && tree.Documents[0].Root != nil {
 		root := tree.Documents[0].Root
-		if root.Kind == golang_yaml_advanced.DocumentNode && len(root.Children) > 0 {
+		if root.Kind == yaml.DocumentNode && len(root.Children) > 0 {
 			root = root.Children[0]
 		}
 
 		usersNode := root.GetMapValue("users")
-		if usersNode != nil && usersNode.Kind == golang_yaml_advanced.SequenceNode {
+		if usersNode != nil && usersNode.Kind == yaml.SequenceNode {
 			for i, userNode := range usersNode.Children {
-				if userNode.Kind == golang_yaml_advanced.MappingNode {
+				if userNode.Kind == yaml.MappingNode {
 					nameNode := userNode.GetMapValue("name")
 					rolesNode := userNode.GetMapValue("roles")
 
-					if rolesNode != nil && rolesNode.Kind == golang_yaml_advanced.SequenceNode {
+					if rolesNode != nil && rolesNode.Kind == yaml.SequenceNode {
 						for _, roleNode := range rolesNode.Children {
-							if roleNode.Kind == golang_yaml_advanced.ScalarNode && fmt.Sprintf("%v", roleNode.Value) == "admin" {
-								if nameNode != nil && nameNode.Kind == golang_yaml_advanced.ScalarNode {
+							if roleNode.Kind == yaml.ScalarNode && fmt.Sprintf("%v", roleNode.Value) == "admin" {
+								if nameNode != nil && nameNode.Kind == yaml.ScalarNode {
 									fmt.Printf("  User %d: %v is an admin\n", i, nameNode.Value)
 								}
 								break

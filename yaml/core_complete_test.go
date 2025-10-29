@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"reflect"
@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elioetibr/golang-yaml-advanced/yaml/internal"
 )
 
 // TestNodeKindString tests the String method of NodeKind
@@ -1290,9 +1292,9 @@ func TestSplitDocuments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := splitDocuments(tt.input)
+			result := internal.SplitDocuments(tt.input)
 			if len(result) != tt.expected {
-				t.Errorf("splitDocuments() returned %v documents, want %v", len(result), tt.expected)
+				t.Errorf("internal.SplitDocuments() returned %v documents, want %v", len(result), tt.expected)
 			}
 		})
 	}
@@ -1407,8 +1409,8 @@ func TestDiffNodesComplete(t *testing.T) {
 		found := false
 		for _, diff := range diffs {
 			if diff.Type == DiffModified &&
-			   diff.OldValue == ScalarNode &&
-			   diff.NewValue == MappingNode {
+				diff.OldValue == ScalarNode &&
+				diff.NewValue == MappingNode {
 				found = true
 				break
 			}
