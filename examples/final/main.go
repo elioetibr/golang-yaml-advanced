@@ -4,57 +4,66 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 
-	"github.com/elioetibr/golang-yaml-advanced"
+	"github.com/elioetibr/golang-yaml-advanced/yaml"
 )
 
 func main() {
+	// Get directory of main.go
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
 	// Step 1: Load the base values file
-	fmt.Println("Step 1: Loading yaml-values.yaml...")
-	baseTree, err := loadYAML("yaml-values.yaml")
+	baseTreeFile := filepath.Join(dir, "yaml-values.yaml")
+	fmt.Printf("Step 1: Loading {%s}...\n", baseTreeFile)
+	baseTree, err := loadYAML(filepath.Join(dir, "yaml-values.yaml"))
 	if err != nil {
 		log.Fatalf("Failed to load base values: %v", err)
 	}
-	fmt.Printf("  ✓ Loaded base values\n")
+	fmt.Printf("  ✓ Loaded base values")
 
 	// Step 2: Load the override values file
-	fmt.Println("\nStep 2: Loading yaml-values-override.yaml...")
-	overrideTree, err := loadYAML("yaml-values-override.yaml")
+	overrideTreeFile := filepath.Join(dir, "yaml-values-override.yaml")
+	fmt.Printf("\nStep 2: Loading {%s}...", overrideTreeFile)
+	overrideTree, err := loadYAML(overrideTreeFile)
 	if err != nil {
 		log.Fatalf("Failed to load override values: %v", err)
 	}
-	fmt.Printf("  ✓ Loaded override values\n")
+	fmt.Printf("  ✓ Loaded override values")
 
 	// Step 3: Merge the files (override values take precedence)
 	fmt.Println("\nStep 3: Merging YAML files...")
-	mergedTree := golang_yaml_advanced.MergeTrees(baseTree, overrideTree)
-	fmt.Printf("  ✓ Merged YAML trees\n")
+	mergedTree := yaml.MergeTrees(baseTree, overrideTree)
+	fmt.Printf("  ✓ Merged YAML trees")
 
 	// Show what was overridden
 	showOverrides(overrideTree)
 
 	// Step 4: Write the merged result
-	fmt.Println("\nStep 4: Writing merged result to yaml-values-merged.yaml...")
-	if err := writeYAML("yaml-values-merged.yaml", mergedTree); err != nil {
+	mergedTreeFile := filepath.Join(dir, "yaml-values-merged.yaml")
+	fmt.Printf("\nStep 4: Writing merged result to {%s}...", mergedTreeFile)
+	if err := writeYAML(mergedTreeFile, mergedTree); err != nil {
 		log.Fatalf("Failed to write merged values: %v", err)
 	}
 	fmt.Println("  ✓ Successfully wrote merged YAML")
 
 	// Step 5: Verify the output - compare with existing merged file
 	fmt.Println("\nStep 5: Verifying output...")
-	existingData, err := os.ReadFile("yaml-values-merged.yaml")
+	existingData, err := os.ReadFile(mergedTreeFile)
 	if err != nil {
 		log.Fatalf("Failed to read merged file for verification: %v", err)
 	}
 
 	// Re-parse to verify
-	verifiedTree, err := golang_yaml_advanced.UnmarshalYAML(existingData)
+	verifiedTree, err := yaml.UnmarshalYAML(existingData)
 	if err != nil {
 		log.Fatalf("Failed to parse merged file for verification: %v", err)
 	}
 
 	// Compare the trees
-	differences := golang_yaml_advanced.DiffTrees(mergedTree, verifiedTree)
+	differences := yaml.DiffTrees(mergedTree, verifiedTree)
 	if len(differences) == 0 {
 		fmt.Println("  ✓ Output matches expected result - no diff!")
 	} else {
@@ -74,13 +83,13 @@ func main() {
 }
 
 // loadYAML loads and parses a YAML file using the custom yaml package
-func loadYAML(filename string) (*golang_yaml_advanced.NodeTree, error) {
+func loadYAML(filename string) (*yaml.NodeTree, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	tree, err := golang_yaml_advanced.UnmarshalYAML(data)
+	tree, err := yaml.UnmarshalYAML(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
@@ -89,7 +98,7 @@ func loadYAML(filename string) (*golang_yaml_advanced.NodeTree, error) {
 }
 
 // writeYAML writes a NodeTree to a YAML file
-func writeYAML(filename string, tree *golang_yaml_advanced.NodeTree) error {
+func writeYAML(filename string, tree *yaml.NodeTree) error {
 	yamlContent, err := tree.ToYAML()
 	if err != nil {
 		return fmt.Errorf("failed to convert to YAML: %w", err)
@@ -99,7 +108,7 @@ func writeYAML(filename string, tree *golang_yaml_advanced.NodeTree) error {
 }
 
 // showOverrides displays what values are being overridden
-func showOverrides(tree *golang_yaml_advanced.NodeTree) {
+func showOverrides(tree *yaml.NodeTree) {
 	fmt.Println("\n  Override summary:")
 
 	if len(tree.Documents) > 0 && tree.Documents[0].Root != nil {
@@ -115,9 +124,9 @@ func showOverrides(tree *golang_yaml_advanced.NodeTree) {
 						fmt.Printf("    • replicaCount: %v (increased replicas)\n", child.Value)
 					}
 				case "topologySpreadConstraints":
-					fmt.Printf("    • topologySpreadConstraints: configured\n")
+					fmt.Printf("    • topologySpreadConstraints: configured")
 				case "strategy":
-					fmt.Printf("    • strategy: configured\n")
+					fmt.Printf("    • strategy: configured")
 				}
 			}
 		}

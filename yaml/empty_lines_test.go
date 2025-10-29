@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"strings"
@@ -283,7 +283,7 @@ cache:
 		lines := strings.Split(outputStr, "\n")
 		for i := 2; i < len(lines); i++ {
 			if strings.HasPrefix(strings.TrimSpace(lines[i]), "#") &&
-			   lines[i-1] == "" && lines[i-2] == "" {
+				lines[i-1] == "" && lines[i-2] == "" {
 				// Found 2 empty lines before comment - good!
 				t.Log("Found normalized 2 empty lines before comment")
 			}

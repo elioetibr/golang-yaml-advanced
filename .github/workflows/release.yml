@@ -57,14 +57,10 @@ jobs:
           - arm64
         go:
           # Current Go Versions available into GitHub Machines
-          - "1.20"
           - "1.21"
           - "1.22"
           - "1.23"
-        exclude:
-          # Windows doesn't support ARM64 runners on GitHub Actions
-          - os: windows-2025
-            arch: arm64
+          - "1.24"
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v5
@@ -115,7 +111,7 @@ jobs:
       - name: Run tests with coverage and race detection
         shell: bash
         run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./ 2>&1 | tee test-output.txt
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./yaml 2>&1 | tee test-output.txt
           echo "TEST_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
 
       - name: Generate test summary
@@ -252,7 +248,7 @@ jobs:
 
       - name: Upload test coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.arch }}-go${{ matrix.go }}
           path: coverage.out
@@ -260,7 +256,7 @@ jobs:
 
       - name: Upload test results artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.arch }}-go${{ matrix.go }}
           path: test-output.txt

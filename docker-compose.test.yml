@@ -1,16 +1,16 @@
 services:
-  # Go 1.20 Test Service
+  # go 1.21 Test Service
   test-go120:
-    image: golang:1.20
+    image: golang:1.21
     container_name: yaml-test-go120
     working_dir: /workspace
     volumes:
       - .:/workspace:ro
     command: >
       sh -c "
-        echo '=== Go 1.20 ===' &&
+        echo '=== go 1.21 ===' &&
         go version &&
-        go test -v -race -cover ./...
+        go test -v -race -cover ./yaml/...
       "
     environment:
       - CGO_ENABLED=1
@@ -28,7 +28,7 @@ services:
       sh -c "
         echo '=== Go 1.21 ===' &&
         go version &&
-        go test -v -race -cover ./...
+        go test -v -race -cover ./yaml/...
       "
     environment:
       - CGO_ENABLED=1
@@ -46,7 +46,7 @@ services:
       sh -c "
         echo '=== Go 1.22 ===' &&
         go version &&
-        go test -v -race -cover ./...
+        go test -v -race -cover ./yaml/...
       "
     environment:
       - CGO_ENABLED=1
@@ -64,7 +64,7 @@ services:
       sh -c "
         echo '=== Go 1.23 ===' &&
         go version &&
-        go test -v -race -cover ./...
+        go test -v -race -cover ./yaml/...
       "
     environment:
       - CGO_ENABLED=1
@@ -82,7 +82,7 @@ services:
       sh -c "
         echo '=== Go Latest ===' &&
         go version &&
-        go test -v -race -cover ./...
+        go test -v -race -cover ./yaml/...
       "
     environment:
       - CGO_ENABLED=1

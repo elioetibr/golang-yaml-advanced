@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 // EmptyLinePolicy defines how to handle empty lines in YAML output
 type EmptyLinePolicy int

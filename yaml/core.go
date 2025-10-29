@@ -1,4 +1,4 @@
-package golang_yaml_advanced
+package yaml
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elioetibr/golang-yaml-advanced/yaml/internal"
 )
 
 type NodeKind int
@@ -75,24 +77,24 @@ func (s NodeStyle) String() string {
 }
 
 type Node struct {
-	Kind            NodeKind
-	Style           NodeStyle
-	Tag             string
-	Value           interface{}
-	Anchor          string
-	Alias           *Node
-	Parent          *Node
-	Children        []*Node
-	Key             *Node
-	Line            int
-	Column          int
-	HeadComment     []string // We can have multiple lines, including empty line markers
-	LineComment     string
-	FootComment     []string // We can have multiple lines
-	EmptyLinesBefore int     // Number of empty lines before this node (will be encoded in HeadComment)
-	EmptyLinesAfter  int     // Number of empty lines after this node
-	EmptyLines      []int    // Deprecated: kept for backwards compatibility
-	Metadata        map[string]interface{}
+	Kind             NodeKind
+	Style            NodeStyle
+	Tag              string
+	Value            interface{}
+	Anchor           string
+	Alias            *Node
+	Parent           *Node
+	Children         []*Node
+	Key              *Node
+	Line             int
+	Column           int
+	HeadComment      []string // We can have multiple lines, including empty line markers
+	LineComment      string
+	FootComment      []string // We can have multiple lines
+	EmptyLinesBefore int      // Number of empty lines before this node (will be encoded in HeadComment)
+	EmptyLinesAfter  int      // Number of empty lines after this node
+	EmptyLines       []int    // Deprecated: kept for backwards compatibility
+	Metadata         map[string]interface{}
 }
 
 type Document struct {
@@ -819,14 +821,14 @@ func (d *Document) ToYAMLWithConfig(config EmptyLineConfig) ([]byte, error) {
 	case EmptyLinesKeepAsIs:
 		if config.PreserveBeforeComments {
 			// Use heuristic to add empty lines before comments
-			output = addEmptyLinesBeforeCommentBlocks(output)
+			output = internal.AddEmptyLinesBeforeCommentBlocks(output)
 		}
 	case EmptyLinesRemove:
 		// Remove all empty lines
-		output = removeEmptyLines(output)
+		output = internal.RemoveEmptyLines(output)
 	case EmptyLinesNormalize:
 		// Normalize to specified number of empty lines
-		output = normalizeEmptyLines(output, config.NormalizedCount)
+		output = internal.NormalizeEmptyLines(output, config.NormalizedCount)
 	}
 
 	return output, nil
@@ -855,99 +857,15 @@ func (nt *NodeTree) ToYAML() ([]byte, error) {
 
 // addEmptyLinesBeforeCommentBlocks adds empty lines before comment blocks
 // This uses heuristics to preserve formatting conventions
-func addEmptyLinesBeforeCommentBlocks(input []byte) []byte {
-	lines := strings.Split(string(input), "\n")
-	var output []string
-	inCommentBlock := false
-
-	for i := 0; i < len(lines); i++ {
-		currentLine := lines[i]
-		trimmedCurrent := strings.TrimSpace(currentLine)
-
-		// Determine if current line is a comment
-		isComment := strings.HasPrefix(trimmedCurrent, "#")
-
-		// Check if we need to add an empty line before this line
-		if i > 0 {
-			prevLine := lines[i-1]
-			trimmedPrev := strings.TrimSpace(prevLine)
-			prevIsComment := strings.HasPrefix(trimmedPrev, "#")
-
-			// Add empty line before a comment block that follows a non-comment line
-			if isComment && !prevIsComment && trimmedPrev != "" {
-				// This is the start of a new comment block after content
-				output = append(output, "")
-				inCommentBlock = true
-			} else if isComment && prevIsComment {
-				// Continue in comment block
-				inCommentBlock = true
-			} else if !isComment && inCommentBlock {
-				// End of comment block
-				inCommentBlock = false
-			}
-		} else if isComment {
-			inCommentBlock = true
-		}
-
-		output = append(output, currentLine)
-	}
-
-	return []byte(strings.Join(output, "\n"))
-}
 
 // Keep the old function name as an alias for backwards compatibility
 func addEmptyLinesBeforeSchemaComments(input []byte) []byte {
-	return addEmptyLinesBeforeCommentBlocks(input)
+	return internal.AddEmptyLinesBeforeCommentBlocks(input)
 }
 
 // removeEmptyLines removes all empty lines from the output
-func removeEmptyLines(input []byte) []byte {
-	lines := strings.Split(string(input), "\n")
-	var output []string
-
-	for _, line := range lines {
-		// Keep non-empty lines
-		if strings.TrimSpace(line) != "" {
-			output = append(output, line)
-		}
-	}
-
-	// Add a final newline if there are lines
-	if len(output) > 0 {
-		return []byte(strings.Join(output, "\n") + "\n")
-	}
-	return []byte{}
-}
 
 // normalizeEmptyLines ensures consistent empty line counts
-func normalizeEmptyLines(input []byte, count int) []byte {
-	lines := strings.Split(string(input), "\n")
-	var output []string
-	lastWasContent := false
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		isComment := strings.HasPrefix(trimmed, "#")
-		isEmpty := trimmed == ""
-
-		if isEmpty {
-			// Skip empty lines, we'll add them as needed
-			continue
-		}
-
-		// Add normalized empty lines before comments (except at start)
-		if isComment && lastWasContent && i > 0 {
-			for j := 0; j < count; j++ {
-				output = append(output, "")
-			}
-		}
-
-		output = append(output, line)
-		lastWasContent = !isComment
-	}
-
-	return []byte(strings.Join(output, "\n"))
-}
 
 // UnmarshalYAMLWithEmptyLines parses YAML and tracks empty lines
 func UnmarshalYAMLWithEmptyLines(data []byte) (*NodeTree, error) {
@@ -955,7 +873,7 @@ func UnmarshalYAMLWithEmptyLines(data []byte) (*NodeTree, error) {
 
 	// Split by document separator to handle multi-document YAML
 	content := string(data)
-	documents := splitDocuments(content)
+	documents := internal.SplitDocuments(content)
 
 	for _, docContent := range documents {
 		// Parse the document and track empty lines
@@ -1098,7 +1016,7 @@ func UnmarshalYAMLLegacy(data []byte) (*NodeTree, error) {
 
 	// Split by document separator to handle multi-document YAML
 	content := string(data)
-	documents := splitDocuments(content)
+	documents := internal.SplitDocuments(content)
 
 	for _, docContent := range documents {
 		// Check if the content has any non-comment YAML
@@ -1157,56 +1075,6 @@ func UnmarshalYAMLLegacy(data []byte) (*NodeTree, error) {
 }
 
 // splitDocuments splits a YAML string into separate documents by --- separator
-func splitDocuments(content string) []string {
-	lines := strings.Split(content, "\n")
-	var documents []string
-	var currentDoc strings.Builder
-	inDocument := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == "---" {
-			// Document separator found
-			if currentDoc.Len() > 0 {
-				documents = append(documents, currentDoc.String())
-				currentDoc.Reset()
-			}
-			inDocument = true
-		} else if trimmed == "..." {
-			// Document end marker
-			if currentDoc.Len() > 0 {
-				documents = append(documents, currentDoc.String())
-				currentDoc.Reset()
-			}
-			inDocument = false
-		} else {
-			// Regular content line
-			if !inDocument && len(documents) == 0 {
-				// First document without explicit --- marker
-				inDocument = true
-			}
-			if inDocument {
-				if currentDoc.Len() > 0 {
-					currentDoc.WriteString("\n")
-				}
-				currentDoc.WriteString(line)
-			}
-		}
-	}
-
-	// Add the last document if any
-	if currentDoc.Len() > 0 {
-		documents = append(documents, currentDoc.String())
-	}
-
-	// If no documents were found, treat the entire content as one document
-	if len(documents) == 0 && len(content) > 0 {
-		documents = append(documents, content)
-	}
-
-	return documents
-}
 
 // resolveAnchors processes a node tree and registers anchors with the document
 func resolveAnchors(node *Node, doc *Document) {
@@ -1934,6 +1802,48 @@ func MergeInterfaces(base, override interface{}) (interface{}, error) {
 }
 
 // interfaceToMap converts various types to map[string]interface{}
+
+// mergeMaps recursively merges two maps
+
+// MergeFlexibleToNodeTree is a convenience function that always returns a NodeTree
+// It converts both inputs to NodeTree if needed and merges them
+func MergeFlexibleToNodeTree(base, override interface{}) (*NodeTree, error) {
+	baseTree, err := ConvertToNodeTree(base)
+	if err != nil {
+		return nil, err
+	}
+
+	overrideTree, err := ConvertToNodeTree(override)
+	if err != nil {
+		return nil, err
+	}
+
+	return MergeTrees(baseTree, overrideTree), nil
+}
+
+// MergeFlexibleToYAML is a convenience function that always returns YAML bytes
+// It merges the inputs and serializes the result to YAML
+func MergeFlexibleToYAML(base, override interface{}) ([]byte, error) {
+	result, err := MergeFlexible(base, override)
+	if err != nil {
+		return nil, err
+	}
+
+	// If result is already YAML bytes, return as-is
+	if yamlBytes, ok := result.([]byte); ok {
+		return yamlBytes, nil
+	}
+
+	// If result is NodeTree, serialize it
+	if tree, ok := result.(*NodeTree); ok {
+		return tree.ToYAML()
+	}
+
+	// Otherwise, marshal the interface
+	return Marshal(result)
+}
+
+// interfaceToMap converts various types to map[string]interface{}
 func interfaceToMap(input interface{}) (map[string]interface{}, error) {
 	// Already a map
 	if m, ok := input.(map[string]interface{}); ok {
@@ -2004,42 +1914,4 @@ func mergeMaps(base, override map[string]interface{}) map[string]interface{} {
 	}
 
 	return result
-}
-
-// MergeFlexibleToNodeTree is a convenience function that always returns a NodeTree
-// It converts both inputs to NodeTree if needed and merges them
-func MergeFlexibleToNodeTree(base, override interface{}) (*NodeTree, error) {
-	baseTree, err := ConvertToNodeTree(base)
-	if err != nil {
-		return nil, err
-	}
-
-	overrideTree, err := ConvertToNodeTree(override)
-	if err != nil {
-		return nil, err
-	}
-
-	return MergeTrees(baseTree, overrideTree), nil
-}
-
-// MergeFlexibleToYAML is a convenience function that always returns YAML bytes
-// It merges the inputs and serializes the result to YAML
-func MergeFlexibleToYAML(base, override interface{}) ([]byte, error) {
-	result, err := MergeFlexible(base, override)
-	if err != nil {
-		return nil, err
-	}
-
-	// If result is already YAML bytes, return as-is
-	if yamlBytes, ok := result.([]byte); ok {
-		return yamlBytes, nil
-	}
-
-	// If result is NodeTree, serialize it
-	if tree, ok := result.(*NodeTree); ok {
-		return tree.ToYAML()
-	}
-
-	// Otherwise, marshal the interface
-	return Marshal(result)
 }

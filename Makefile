@@ -4,7 +4,7 @@
 COVERAGE_OUT := coverage.out
 COVERAGE_HTML := coverage.html
 PKG_PATH := ./...
-PKG_TEST_PATH := ./
+PKG_TEST_PATH := ./yaml
 EXAMPLES_PATH := ./examples/
 
 # Colors for output
@@ -182,7 +182,7 @@ verify: install test ## Verify installation and run basic tests
 	@echo "$(GREEN)Verification complete$(NC)"
 
 # Docker-based multi-version testing
-GO_VERSIONS := 1.20 1.21 1.22 1.23
+GO_VERSIONS := 1.21 1.22 1.23 1.24
 DOCKER_RUN := docker run --rm -v "$(PWD)":/workspace -w /workspace
 
 docker-test: ## Test with all supported Go versions using Docker
@@ -199,9 +199,9 @@ docker-test: ## Test with all supported Go versions using Docker
 	@echo ""
 	@echo "$(GREEN)All version tests completed successfully!$(NC)"
 
-docker-test-version: ## Test with specific Go version (use GO_VERSION=1.20)
+docker-test-version: ## Test with specific Go version (use GO_VERSION=1.21)
 	@if [ -z "$(GO_VERSION)" ]; then \
-		echo "$(RED)Please specify GO_VERSION, e.g., make docker-test-version GO_VERSION=1.20$(NC)"; \
+		echo "$(RED)Please specify GO_VERSION, e.g., make docker-test-version GO_VERSION=1.21$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(GREEN)Testing with Go $(GO_VERSION)...$(NC)"
@@ -282,9 +282,9 @@ docker-test-quick: ## Quick test with latest 3 Go versions
 		echo "$(GREEN)✓$(NC)"; \
 	done
 
-docker-test-compat: ## Test backwards compatibility (Go 1.20)
-	@echo "$(GREEN)Testing backwards compatibility with Go 1.20...$(NC)"
-	@$(DOCKER_RUN) golang:1.20 sh -c "\
+docker-test-compat: ## Test backwards compatibility (go 1.21)
+	@echo "$(GREEN)Testing backwards compatibility with go 1.21...$(NC)"
+	@$(DOCKER_RUN) golang:1.21 sh -c "\
 		echo 'Go version:' && go version && \
 		echo '' && \
 		echo 'Testing...' && \
@@ -371,10 +371,10 @@ docker-help: ## Show Docker-specific targets
 	@echo ""
 	@echo "$(YELLOW)── Docker Run Commands ──$(NC)"
 	@echo "  $(YELLOW)docker-test$(NC)          - Test with all supported Go versions"
-	@echo "  $(YELLOW)docker-test-version$(NC)  - Test with specific version (GO_VERSION=1.20)"
+	@echo "  $(YELLOW)docker-test-version$(NC)  - Test with specific version (GO_VERSION=1.21)"
 	@echo "  $(YELLOW)docker-test-matrix$(NC)   - Comprehensive test matrix"
 	@echo "  $(YELLOW)docker-test-quick$(NC)    - Quick test with recent versions"
-	@echo "  $(YELLOW)docker-test-compat$(NC)   - Test Go 1.20 compatibility"
+	@echo "  $(YELLOW)docker-test-compat$(NC)   - Test go 1.21 compatibility"
 	@echo "  $(YELLOW)docker-test-latest$(NC)   - Test with latest Go"
 	@echo "  $(YELLOW)docker-bench$(NC)         - Run benchmarks across versions"
 	@echo "  $(YELLOW)docker-coverage$(NC)      - Generate coverage report"
@@ -399,4 +399,4 @@ docker-help: ## Show Docker-specific targets
 	@echo "  make docker-test-version GO_VERSION=1.21"
 	@echo "  make compose-test-parallel"
 	@echo "  make compose-test-single SERVICE=test-go122"
-	@echo "  make docker-shell GO_VERSION=1.20"
+	@echo "  make docker-shell GO_VERSION=1.21"

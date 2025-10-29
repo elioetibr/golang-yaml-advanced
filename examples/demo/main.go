@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/elioetibr/golang-yaml-advanced"
+	"github.com/elioetibr/golang-yaml-advanced/yaml"
 )
 
 type YamlData struct {
@@ -245,7 +245,7 @@ multiple_merge:
 
 func main() {
 	// Process all YAML test data
-	trees := make(map[string]*golang_yaml_advanced.NodeTree)
+	trees := make(map[string]*yaml.NodeTree)
 
 	for key, data := range yamlCommonTestData {
 		fmt.Printf("\n=== Parsing %s: %s ===\n", key, data.Title)
@@ -276,9 +276,9 @@ func main() {
 	testAdvancedYAML()
 }
 
-func parseAndDisplayYAML(name string, content string) *golang_yaml_advanced.NodeTree {
+func parseAndDisplayYAML(name string, content string) *yaml.NodeTree {
 	// Use our custom unmarshal function
-	tree, err := golang_yaml_advanced.UnmarshalYAML([]byte(content))
+	tree, err := yaml.UnmarshalYAML([]byte(content))
 	if err != nil {
 		log.Fatalf("Failed to parse %s YAML: %v", name, err)
 	}
@@ -298,7 +298,7 @@ func parseAndDisplayYAML(name string, content string) *golang_yaml_advanced.Node
 	return tree
 }
 
-func displayNodeTree(node *golang_yaml_advanced.Node, indent int) {
+func displayNodeTree(node *yaml.Node, indent int) {
 	if node == nil {
 		return
 	}
@@ -306,12 +306,12 @@ func displayNodeTree(node *golang_yaml_advanced.Node, indent int) {
 	indentStr := strings.Repeat("  ", indent)
 
 	switch node.Kind {
-	case golang_yaml_advanced.DocumentNode:
+	case yaml.DocumentNode:
 		fmt.Printf("%sDocument:\n", indentStr)
 		for _, child := range node.Children {
 			displayNodeTree(child, indent+1)
 		}
-	case golang_yaml_advanced.MappingNode:
+	case yaml.MappingNode:
 		fmt.Printf("%sMapping:\n", indentStr)
 		for i := 0; i < len(node.Children)-1; i += 2 {
 			key := node.Children[i]
@@ -319,21 +319,21 @@ func displayNodeTree(node *golang_yaml_advanced.Node, indent int) {
 			fmt.Printf("%s  %v:\n", indentStr, key.Value)
 			displayNodeTree(value, indent+2)
 		}
-	case golang_yaml_advanced.SequenceNode:
+	case yaml.SequenceNode:
 		fmt.Printf("%sSequence:\n", indentStr)
 		for _, item := range node.Children {
 			fmt.Printf("%s  - ", indentStr)
 			displayNodeTree(item, indent+2)
 		}
-	case golang_yaml_advanced.ScalarNode:
+	case yaml.ScalarNode:
 		if node.Value != nil {
 			fmt.Printf("%sScalar: %v\n", indentStr, node.Value)
 		}
 	}
 }
 
-func extractComments(node *golang_yaml_advanced.Node) {
-	node.Walk(func(n *golang_yaml_advanced.Node) bool {
+func extractComments(node *yaml.Node) {
+	node.Walk(func(n *yaml.Node) bool {
 		hasComments := false
 
 		if len(n.HeadComment) > 0 {
@@ -357,7 +357,7 @@ func extractComments(node *golang_yaml_advanced.Node) {
 			hasComments = true
 		}
 
-		if hasComments && n.Kind == golang_yaml_advanced.ScalarNode && n.Value != nil {
+		if hasComments && n.Kind == yaml.ScalarNode && n.Value != nil {
 			fmt.Printf("  -> Value: %v\n", n.Value)
 		}
 
@@ -365,7 +365,7 @@ func extractComments(node *golang_yaml_advanced.Node) {
 	})
 }
 
-func writeYAMLToFile(tree *golang_yaml_advanced.NodeTree, filename string) {
+func writeYAMLToFile(tree *yaml.NodeTree, filename string) {
 	yamlBytes, err := tree.ToYAML()
 	if err != nil {
 		log.Fatalf("Failed to serialize YAML: %v", err)
@@ -391,14 +391,14 @@ func verifyWrittenFile(filename string) {
 func testYAMLMerge() {
 	// Parse the base YAML (simple)
 	baseData := yamlCommonTestData["simple"]
-	baseTree, err := golang_yaml_advanced.UnmarshalYAML([]byte(baseData.Content))
+	baseTree, err := yaml.UnmarshalYAML([]byte(baseData.Content))
 	if err != nil {
 		log.Fatalf("Failed to parse base YAML: %v", err)
 	}
 
 	// Parse the overlay YAML (toMerge)
 	overlayData := yamlMergeTestData["toMerge"]
-	overlayTree, err := golang_yaml_advanced.UnmarshalYAML([]byte(overlayData.Content))
+	overlayTree, err := yaml.UnmarshalYAML([]byte(overlayData.Content))
 	if err != nil {
 		log.Fatalf("Failed to parse overlay YAML: %v", err)
 	}
@@ -410,7 +410,7 @@ func testYAMLMerge() {
 	fmt.Println(overlayData.Content)
 
 	// Merge the trees
-	mergedTree := golang_yaml_advanced.MergeTrees(baseTree, overlayTree)
+	mergedTree := yaml.MergeTrees(baseTree, overlayTree)
 
 	// Write the merged result
 	mergedBytes, err := mergedTree.ToYAML()
@@ -436,7 +436,7 @@ func testAdvancedYAML() {
 		fmt.Printf("\n=== Testing %s: %s ===\n", key, data.Title)
 
 		// Parse the YAML
-		tree, err := golang_yaml_advanced.UnmarshalYAML([]byte(data.Content))
+		tree, err := yaml.UnmarshalYAML([]byte(data.Content))
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", key, err)
 			continue
@@ -473,7 +473,7 @@ func testAdvancedYAML() {
 		fmt.Printf("Written to %s\n", filename)
 
 		// Show first few lines of output
-		lines := strings.Split(string(output), "\n")
+		lines := strings.Split(string(output), "")
 		preview := 5
 		if len(lines) < preview {
 			preview = len(lines)
@@ -493,13 +493,13 @@ type NodeStats struct {
 	maxDepth  int
 }
 
-func getNodeStats(node *golang_yaml_advanced.Node) NodeStats {
+func getNodeStats(node *yaml.Node) NodeStats {
 	stats := NodeStats{}
 	getNodeStatsRecursive(node, 0, &stats)
 	return stats
 }
 
-func getNodeStatsRecursive(node *golang_yaml_advanced.Node, depth int, stats *NodeStats) {
+func getNodeStatsRecursive(node *yaml.Node, depth int, stats *NodeStats) {
 	if node == nil {
 		return
 	}
