@@ -96,7 +96,7 @@ jobs:
             ${{ runner.os }}-${{ matrix.arch }}-go-${{ matrix.go }}-
 
       - name: Set up Go ${{ matrix.go }}
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
